@@ -9,7 +9,7 @@ app.use(express.json());
 
 const API_ID = 33739309;
 const API_HASH = '73f212aa2fedeb0c135284edef41c3a1';
-const SESSION = '1BAAOMTQ5LjE1NC4xNjcuOTEAUHYx1zkCzkZex/IYFkPbEoeLA/gqlcxlzXOPNW7CQRQ2XIhOFC0Wl4LUzls/xMPSRNeGCg+w0kS+S0/rH6XDT8I4JYtwQBbtjvsEYMDc6QNKi6hBdVTBPit/lKChdUlBFs8VS/MmJENQFjFDMVepKHO0NsNwJWIcDV4HuNyxcT6xMKrWxypDMHjOuqVXTqlNVD9LZAv7QTxupMPbCMVolz92y8pK/g81/glTff+TWjRio27wqZTehreOxfpvIyT1if871ghbMJwRYQ80jK+D5ZrFZnNJou53zKQy+Q9SBVj23y66JFFNF6srIbLtExO841jA/KMoPjA0I4H8AKus/MY=';
+const SESSION = '1BAAOMTQ5LjE1NC4xNjcuOTEAUFwOOctA+U9nvgv1ML+g5WnCpdddiZzkZMMGMOqJ2zFASP+KDEvt6F530EKisu5+6wjXOCAdulEBvBAy/tqZrMZGJd3R0dOYuKpWoyiREFcUsjcFyRqxsw24PMPQsVUMM6OUp7Io4G7JwRrTBmuh1MhmjCge361ttNvOB8BBxm+M/PTkmsiheOntmhsuApbBqrnUDPuR6WP1G9tsBJuYqUzsUhC0wxDQcs59U1hPS/uFeiPUuY/CoS+PwGoIP6dDaoM1UiB0r7ZpfhS5wOR76Tz0rp8KEBA7i8canWCpoxFhLceOVqKmNBLQ7G12st1QeYa9QIcA/ImyAq9LX15e0kE=';
 
 const TELEGRAM_GROUPS = [
   'ILRentsTLV',
@@ -38,7 +38,7 @@ function extractPropertyInfo(text, city) {
   const hasBalcony = /מרפסת|balcony/i.test(text);
   const roomsMatch = text.match(/(\d+\.?\d*)\s*חד/);
   const rooms = roomsMatch ? roomsMatch[1] : '3';
-  const priceMatch = text.match(/[\d,]+\s*₪|₪\s*[\d,]+|[\d]+[,.][\d]+/);
+  const priceMatch = text.match(/[\d,]+\s*₪|₪\s*[\d,]+/);
   const price = priceMatch ? priceMatch[0] : '';
   const phoneMatch = text.match(/0\d{9}/);
   const phone = phoneMatch ? phoneMatch[0] : '';
@@ -59,12 +59,16 @@ app.post('/scan', async (req, res) => {
 
     for (const group of TELEGRAM_GROUPS) {
       try {
-        const messages = await client.getMessages(group, { limit: 50 });
+        const messages = await client.getMessages(group, { limit: 100 });
         for (const msg of messages) {
           if (!msg.text) continue;
           const text = msg.text;
-          const cityMatch = text.includes(city) || text.includes('דירה') || text.includes('להשכרה') || text.includes('למכירה');
-          const roomsMatch = text.includes(rooms + ' חד') || text.includes(rooms + ' חדר');
+          
+          // סינון לפי עיר
+          const cityMatch = text.includes(city);
+          // סינון לפי חדרים
+          const roomsMatch = text.includes(rooms + ' חד') || text.includes(rooms + ' חדר') || text.includes(rooms + '.0 חד');
+          
           if (cityMatch || roomsMatch) {
             const info = extractPropertyInfo(text, city);
             const match = Math.floor(70 + Math.random() * 25);
