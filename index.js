@@ -11,13 +11,19 @@ const API_ID = 33739309;
 const API_HASH = '73f212aa2fedeb0c135284edef41c3a1';
 const SESSION = '1BAAOMTQ5LjE1NC4xNjcuOTEAUFwOOctA+U9nvgv1ML+g5WnCpdddiZzkZMMGMOqJ2zFASP+KDEvt6F530EKisu5+6wjXOCAdulEBvBAy/tqZrMZGJd3R0dOYuKpWoyiREFcUsjcFyRqxsw24PMPQsVUMM6OUp7Io4G7JwRrTBmuh1MhmjCge361ttNvOB8BBxm+M/PTkmsiheOntmhsuApbBqrnUDPuR6WP1G9tsBJuYqUzsUhC0wxDQcs59U1hPS/uFeiPUuY/CoS+PwGoIP6dDaoM1UiB0r7ZpfhS5wOR76Tz0rp8KEBA7i8canWCpoxFhLceOVqKmNBLQ7G12st1QeYa9QIcA/ImyAq9LX15e0kE=';
 
-const TELEGRAM_GROUPS = [
+// קבוצות לפי סוג עסקה
+const GROUPS_RENT = [
   'ILRentsTLV',
-  'dirabyad',
-  'nadlan_israel',
   'dira_tlv',
   'apartments_il',
 ];
+
+const GROUPS_BUY = [
+  'dirabyad',
+  'nadlan_israel',
+];
+
+const GROUPS_ALL = [...new Set([...GROUPS_RENT, ...GROUPS_BUY])];
 
 let scanResults = [];
 let client = null;
@@ -32,7 +38,7 @@ async function initTelegram() {
   }
 }
 
-function extractPropertyInfo(text, city) {
+function extractPropertyInfo(text) {
   const hasParking = /חני[יה]ה|parking/i.test(text);
   const hasShelter = /ממ[״"]ד|shelter/i.test(text);
   const hasBalcony = /מרפסת|balcony/i.test(text);
@@ -45,32 +51,47 @@ function extractPropertyInfo(text, city) {
   return { rooms, price, parking: hasParking, shelter: hasShelter, balcony: hasBalcony, phone };
 }
 
+function isRentMessage(text) {
+  return /להשכרה|שכירות|שכ"ד|לשכירה/i.test(text);
+}
+
+function isBuyMessage(text) {
+  return /למכירה|מכירה|לרכישה/i.test(text);
+}
+
 app.post('/scan', async (req, res) => {
   const { preferences } = req.body;
   const city = preferences?.city || 'תל אביב';
   const rooms = preferences?.rooms || '3';
+  const type = preferences?.type || 'קנייה'; // קנייה / השכרה
+  const isRent = type === 'השכרה';
 
   try {
     if (!client || !client.connected) {
       await initTelegram();
     }
 
+    // בחר קבוצות לפי סוג עסקה
+    const groups = isRent ? GROUPS_RENT : GROUPS_BUY;
+
     let results = [];
 
-    for (const group of TELEGRAM_GROUPS) {
+    for (const group of groups) {
       try {
         const messages = await client.getMessages(group, { limit: 100 });
         for (const msg of messages) {
           if (!msg.text) continue;
           const text = msg.text;
-          
+
           // סינון לפי עיר
           const cityMatch = text.includes(city);
           // סינון לפי חדרים
           const roomsMatch = text.includes(rooms + ' חד') || text.includes(rooms + ' חדר') || text.includes(rooms + '.0 חד');
-          
-          if (cityMatch || roomsMatch) {
-            const info = extractPropertyInfo(text, city);
+          // סינון לפי סוג עסקה בטקסט
+          const typeMatch = isRent ? isRentMessage(text) : isBuyMessage(text);
+
+          if (cityMatch || roomsMatch || typeMatch) {
+            const info = extractPropertyInfo(text);
             const match = Math.floor(70 + Math.random() * 25);
             results.push({
               id: results.length + 1,
@@ -87,6 +108,7 @@ app.post('/scan', async (req, res) => {
               phone: info.phone,
               description: text.substring(0, 200),
               postedAt: 'לפני ' + Math.floor(Math.random() * 12) + ' שעות',
+              type: isRent ? 'השכרה' : 'קנייה',
             });
           }
           if (results.length >= 15) break;
