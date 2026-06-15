@@ -9,9 +9,8 @@ app.use(express.json());
 
 const API_ID = 33739309;
 const API_HASH = '73f212aa2fedeb0c135284edef41c3a1';
-const SESSION = '1BAAOMTQ5LjE1NC4xNjcuOTEAUFwOOctA+U9nvgv1ML+g5WnCpdddiZzkZMMGMOqJ2zFASP+KDEvt6F530EKisu5+6wjXOCAdulEBvBAy/tqZrMZGJd3R0dOYuKpWoyiREFcUsjcFyRqxsw24PMPQsVUMM6OUp7Io4G7JwRrTBmuh1MhmjCge361ttNvOB8BBxm+M/PTkmsiheOntmhsuApbBqrnUDPuR6WP1G9tsBJuYqUzsUhC0wxDQcs59U1hPS/uFeiPUuY/CoS+PwGoIP6dDaoM1UiB0r7ZpfhS5wOR76Tz0rp8KEBA7i8canWCpoxFhLceOVqKmNBLQ7G12st1QeYa9QIcA/ImyAq9LX15e0kE=';
+const SESSION = process.env.SESSION_STRING || '';
 
-// קבוצות לפי סוג עסקה
 const GROUPS_RENT = [
   'ILRentsTLV',
   'dira_tlv',
@@ -22,8 +21,6 @@ const GROUPS_BUY = [
   'dirabyad',
   'nadlan_israel',
 ];
-
-const GROUPS_ALL = [...new Set([...GROUPS_RENT, ...GROUPS_BUY])];
 
 let scanResults = [];
 let client = null;
@@ -63,7 +60,7 @@ app.post('/scan', async (req, res) => {
   const { preferences } = req.body;
   const city = preferences?.city || 'תל אביב';
   const rooms = preferences?.rooms || '3';
-  const type = preferences?.type || 'קנייה'; // קנייה / השכרה
+  const type = preferences?.type || 'קנייה';
   const isRent = type === 'השכרה';
 
   try {
@@ -71,9 +68,7 @@ app.post('/scan', async (req, res) => {
       await initTelegram();
     }
 
-    // בחר קבוצות לפי סוג עסקה
     const groups = isRent ? GROUPS_RENT : GROUPS_BUY;
-
     let results = [];
 
     for (const group of groups) {
@@ -82,12 +77,8 @@ app.post('/scan', async (req, res) => {
         for (const msg of messages) {
           if (!msg.text) continue;
           const text = msg.text;
-
-          // סינון לפי עיר
           const cityMatch = text.includes(city);
-          // סינון לפי חדרים
           const roomsMatch = text.includes(rooms + ' חד') || text.includes(rooms + ' חדר') || text.includes(rooms + '.0 חד');
-          // סינון לפי סוג עסקה בטקסט
           const typeMatch = isRent ? isRentMessage(text) : isBuyMessage(text);
 
           if (cityMatch || roomsMatch || typeMatch) {
